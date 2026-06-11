@@ -101,7 +101,10 @@ def do_sync(
 
 
 def _notify_subscriber(sub, added_agents: list[str], base_url: str) -> None:
-    names = "\n".join(f"  • {n}" for n in added_agents)
+    def _safe(name: str) -> str:
+        return name.replace("\r", "").replace("\n", "")
+
+    names = "\n".join(f"  • {_safe(n)}" for n in added_agents)
     unsub = f"{base_url}/crawlerwatch/unsubscribe/{sub.unsubscribe_token}"
     body = (
         f"TrueTraffic Crawler Watch\n\n"

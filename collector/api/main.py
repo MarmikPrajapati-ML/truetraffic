@@ -55,7 +55,8 @@ _CORS_ORIGINS = [
 _MAX_UPLOAD_BYTES = int(os.environ.get("LOG_MAX_UPLOAD_BYTES", 100 * 1024 * 1024))  # 100 MB
 _TMP_DIR = Path(os.environ.get("LOG_TMP_DIR", tempfile.gettempdir()))
 
-_SYNC_SECRET = os.environ.get("SYNC_SECRET", "")
+# None means "not configured" — sync endpoint will return 403 when unset
+_SYNC_SECRET: str | None = os.environ.get("SYNC_SECRET") or None
 _BASE_URL = os.environ.get("BASE_URL", "http://localhost:8001")
 
 app = FastAPI(title="TrueTraffic Collector", version="0.4.0")
@@ -74,7 +75,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    return response
+
 _SITE_KEY_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+_DOMAIN_RE = re.compile(r"^(?:[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
 
 DB = Annotated[DBSession, Depends(get_db)]
 
@@ -112,10 +123,11 @@ class BeaconPayload(BaseModel):
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 @app.get("/health")
-def health(db: DB) -> dict:
-    """H4: verifies a real DB query."""
+@limiter.limit("60/minute")
+def health(request: Request, db: DB) -> dict:
+    """H4: verifies a real DB query. DB path not exposed in response."""
     db.execute(func.now() if "sqlite" not in str(engine.url) else func.date("now"))
-    return {"status": "ok", "db": str(engine.url).split("///")[-1]}
+    return {"status": "ok"}
 
 
 @app.post("/sites")
@@ -123,7 +135,10 @@ def health(db: DB) -> dict:
 def register_site(request: Request, domain: str = "", db: DB = None) -> dict:
     if not domain or len(domain) > 255:
         raise HTTPException(400, "domain is required (max 255 chars)")
-    site = Site(site_key=str(uuid.uuid4()), domain=domain.lower().strip())
+    domain_clean = domain.lower().strip().lstrip("www.")
+    if not _DOMAIN_RE.match(domain_clean):
+        raise HTTPException(400, "invalid domain format")
+    site = Site(site_key=str(uuid.uuid4()), domain=domain_clean)
     db.add(site)
     db.commit()
     db.refresh(site)
@@ -277,12 +292,16 @@ async def upload_log(
     if site_key and not _SITE_KEY_RE.match(site_key):
         raise HTTPException(400, "invalid site_key format")
 
-    suffix = Path(file.filename or "upload.log").suffix or ".log"
+    _ALLOWED_SUFFIXES = {".log", ".txt", ".csv", ".gz"}
+    raw_suffix = Path(file.filename or "upload.log").suffix.lower()
+    suffix = raw_suffix if raw_suffix in _ALLOWED_SUFFIXES else ".log"
+
     tmp_path = _TMP_DIR / f"tt_log_{uuid.uuid4().hex}{suffix}"
 
     try:
         size = 0
-        with tmp_path.open("wb") as fh:
+        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as fh:
             while True:
                 chunk = await file.read(65536)
                 if not chunk:
@@ -413,7 +432,8 @@ def subscribe(request: Request, body: SubscribeBody, db: DBSession = Depends(get
 
 
 @app.get("/crawlerwatch/unsubscribe/{token}")
-def unsubscribe(token: str, db: DBSession = Depends(get_db)) -> Response:
+@limiter.limit("10/minute")
+def unsubscribe(request: Request, token: str, db: DBSession = Depends(get_db)) -> Response:
     sub = db.query(Subscriber).filter(Subscriber.unsubscribe_token == token).first()
     if sub:
         db.delete(sub)
@@ -451,10 +471,11 @@ def changelog(request: Request, limit: int = 20, db: DBSession = Depends(get_db)
 @app.post("/crawlerwatch/sync")
 @limiter.limit("1/hour")
 def sync_crawlers(request: Request, db: DBSession = Depends(get_db)) -> dict:
-    """Trigger upstream sync. Requires X-Sync-Secret header if SYNC_SECRET env var is set."""
-    if _SYNC_SECRET:
-        header = request.headers.get("X-Sync-Secret", "")
-        if header != _SYNC_SECRET:
-            raise HTTPException(401, "invalid or missing X-Sync-Secret")
+    """Trigger upstream sync. SYNC_SECRET env var must be set; provide it via X-Sync-Secret."""
+    if _SYNC_SECRET is None:
+        raise HTTPException(403, "sync endpoint disabled (set SYNC_SECRET env var to enable)")
+    header = request.headers.get("X-Sync-Secret", "")
+    if not header or header != _SYNC_SECRET:
+        raise HTTPException(401, "invalid or missing X-Sync-Secret")
     result = do_sync(db, base_url=_BASE_URL)
     return result

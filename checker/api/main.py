@@ -42,8 +42,18 @@ app.add_middleware(
 _INDEX = Path(__file__).parent.parent / "index.html"
 
 
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    return response
+
+
 @app.get("/health")
-def health() -> dict:
+@limiter.limit("60/minute")
+def health(request: Request) -> dict:
     return {"status": "ok"}
 
 
