@@ -186,10 +186,10 @@ COMPOUND THRESHOLD (no pointer activity):
 
 | Scenario | Classification | Confidence |
 |----------|---------------|-----------|
-| webdriver = true | suspected_agent | ~99% — very rarely set in real browsers |
-| headless_ua = true | suspected_agent | ~99% — only headless Chrome in production |
-| pointer + scroll + normal plugins | human | ~95%+ — mimicking all signals simultaneously is hard |
-| all weak signals high, no pointer | suspected_agent | ~80% — compound signals are strong but not definitive |
+| webdriver = true | suspected_agent | Very high — this flag is almost never set in production browsers |
+| headless_ua = true | suspected_agent | Very high — "HeadlessChrome" in the UA string is not present in real browsers |
+| pointer + scroll + normal plugins | human | High — simultaneously mimicking all signals requires significant bot sophistication |
+| all weak signals high, no pointer | suspected_agent | Moderate — mobile browsers can share some characteristics with headless environments |
 
 **Low confidence classifications:**
 
@@ -491,12 +491,14 @@ All public endpoints are rate-limited per IP address via slowapi:
 |---------|----------|--------------------|
 | Robots.txt grade | Very high for compliant crawlers | Cannot detect bots that ignore robots.txt |
 | Per-crawler status | High (uses same parser as crawlers) | Limited to bots in ai-agents.json |
-| JS classification (webdriver/headless) | ~99% precision | Patched headless browsers can suppress these flags |
-| JS classification (compound weak signals) | ~80% precision | Mobile browsers share some signals with headless |
-| JS classification (overall human label) | ~95% precision | Bots simulating pointer events could fool it |
-| Log analysis | Depends on ai-agents.json coverage | New crawlers with unknown UAs are missed |
-| Bandwidth cost estimate | Exact for matched bots | Unmatched bots excluded from cost |
+| JS classification (webdriver/headless) | High — these flags are rarely present in real browsers | Patched headless browsers (Puppeteer-stealth) can suppress them |
+| JS classification (compound weak signals) | Moderate — mobile browsers share some characteristics | A conservative threshold reduces false positives at the cost of more unknowns |
+| JS classification (overall human label) | High — real humans almost always produce pointer events | Bots that simulate pointer activity at the protocol level could evade detection |
+| Log analysis | Directly tied to ai-agents.json coverage | New or renamed crawlers with unknown UAs are missed entirely |
+| Bandwidth cost estimate | Exact for matched bots | Unmatched bots are excluded from the cost estimate |
 
-**False positive rate (human labelled as bot):** Very low (<1% estimated). The classifier requires either a definitive automation flag or 3+ weak signals without any pointer activity. Real humans almost always trigger pointer events.
+**False positive rate (human labelled as bot):** Very low by design. The classifier requires either a definitive automation flag (webdriver, headless UA) or multiple weak signals *combined with* absent pointer activity. Real humans almost always trigger pointer events during a session.
 
-**False negative rate (bot labelled as human or unknown):** Moderate (~20–40% of sophisticated bots end up as "unknown"). This is an intentional design decision — it is better to undercount bots than to incorrectly label a human session.
+**False negative rate (bot labelled as human or unknown):** The "unknown" bucket is intentionally large. It is better to undercount bots than to incorrectly label a human session. Sophisticated bots that suppress all signals or perfectly mimic human behaviour will be classified as unknown or human.
+
+*No labeled ground-truth dataset currently exists for this classifier. Accuracy descriptions above are qualitative, based on the design of each rule and the rarity of each signal in real browser environments.*
