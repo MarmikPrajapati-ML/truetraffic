@@ -54,3 +54,33 @@ class LogReport(Base):
     report_json = Column(Text, nullable=True)
     error_msg = Column(String(500), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class Subscriber(Base):
+    """Email subscriber for Crawler Watch alerts. H8: opt-in only, unsubscribe_token for one-click removal."""
+    __tablename__ = "subscribers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    unsubscribe_token = Column(String(36), unique=True, nullable=False,
+                               default=lambda: str(uuid.uuid4()))
+    subscribed_at = Column(DateTime, server_default=func.now())
+
+
+class CrawlerSnapshot(Base):
+    """Daily snapshot of known agent names for diff tracking."""
+    __tablename__ = "crawler_snapshots"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    snapshot_date = Column(String(10), unique=True, nullable=False, index=True)
+    agent_names_json = Column(Text, nullable=False)
+
+
+class CrawlerChangelog(Base):
+    """Record of each detected upstream diff (new or removed crawlers)."""
+    __tablename__ = "crawler_changelog"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    changed_at = Column(DateTime, nullable=False, index=True)
+    added_json = Column(Text, default="[]")
+    removed_json = Column(Text, default="[]")

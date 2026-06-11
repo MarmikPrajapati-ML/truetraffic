@@ -4,8 +4,10 @@ import { HumanGauge } from './components/HumanGauge';
 import { BucketBar } from './components/BucketBar';
 import { TrendChart } from './components/TrendChart';
 import LogAnalyzer from './pages/LogAnalyzer';
+import PolicyManager from './pages/PolicyManager';
+import CrawlerWatch from './pages/CrawlerWatch';
 
-type Tab = 'dashboard' | 'logs';
+type Tab = 'dashboard' | 'logs' | 'policy' | 'watch';
 
 const COLLECTOR = import.meta.env.VITE_COLLECTOR_URL || 'http://localhost:8001';
 
@@ -56,7 +58,12 @@ export default function App() {
       <nav style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '0 28px', height: 56, display: 'flex', alignItems: 'center', gap: 16 }}>
         <div style={{ width: 28, height: 28, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>T</div>
         <span style={{ fontWeight: 700, fontSize: 16, marginRight: 8 }}>TrueTraffic</span>
-        {(['dashboard', 'logs'] as Tab[]).map((t) => (
+        {([
+          ['dashboard', 'Dashboard'],
+          ['logs', 'Log Analyzer'],
+          ['policy', 'Policy Manager'],
+          ['watch', 'Crawler Watch'],
+        ] as [Tab, string][]).map(([t, label]) => (
           <button key={t} onClick={() => setTab(t)} style={{
             background: 'none',
             border: 'none',
@@ -67,12 +74,14 @@ export default function App() {
             borderBottom: tab === t ? '2px solid #6366f1' : '2px solid transparent',
             padding: '4px 2px',
           }}>
-            {t === 'dashboard' ? 'Dashboard' : 'Log Analyzer'}
+            {label}
           </button>
         ))}
       </nav>
 
       {tab === 'logs' && <LogAnalyzer />}
+      {tab === 'policy' && <PolicyManager />}
+      {tab === 'watch' && <CrawlerWatch />}
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '40px 24px 80px', display: tab === 'dashboard' ? 'block' : 'none' }}>
 
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>

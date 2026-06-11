@@ -1,4 +1,4 @@
-"""TrueTraffic collector API — Phase 3."""
+"""TrueTraffic collector API — Phase 4."""
 from __future__ import annotations
 
 import json
@@ -32,9 +32,16 @@ from shared import logging_cfg
 from shared.limiter import limiter
 
 from .classifier import classify
+from .crawlerwatch import do_sync
 from .db import Base, SessionLocal, engine, get_db
 from .log_analyzer import analyze as analyze_log
-from .models import LogReport, Site, Visit
+from .models import CrawlerChangelog, LogReport, Site, Subscriber, Visit
+from .policy import (
+    generate_llms_txt,
+    generate_robots_block,
+    get_agents_by_category,
+    prefill_from_robots,
+)
 
 logging_cfg.configure(os.environ.get("LOG_LEVEL", "INFO"))
 Base.metadata.create_all(bind=engine)
@@ -48,7 +55,10 @@ _CORS_ORIGINS = [
 _MAX_UPLOAD_BYTES = int(os.environ.get("LOG_MAX_UPLOAD_BYTES", 100 * 1024 * 1024))  # 100 MB
 _TMP_DIR = Path(os.environ.get("LOG_TMP_DIR", tempfile.gettempdir()))
 
-app = FastAPI(title="TrueTraffic Collector", version="0.3.0")
+_SYNC_SECRET = os.environ.get("SYNC_SECRET", "")
+_BASE_URL = os.environ.get("BASE_URL", "http://localhost:8001")
+
+app = FastAPI(title="TrueTraffic Collector", version="0.4.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, lambda req, exc: Response(
     content='{"detail":"rate limit exceeded"}',
@@ -317,3 +327,134 @@ def get_log_report(request: Request, report_id: str, db: DBSession = Depends(get
         "status": "done",
         "data": json.loads(report.report_json or "{}"),
     }
+
+
+# ── Policy generator ─────────────────────────────────────────────────────────
+
+class PolicyGenerateBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    decisions: dict[str, str] = Field(default_factory=dict)
+    domain: str = Field(default="", max_length=255)
+
+
+class PolicyPrefillBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    domain: str = Field(min_length=1, max_length=255)
+
+
+@app.get("/policy/agents")
+@limiter.limit("60/minute")
+def policy_agents(request: Request) -> dict:
+    """Return known agents grouped by category for the policy UI."""
+    return {"groups": get_agents_by_category()}
+
+
+@app.post("/policy/prefill")
+@limiter.limit("10/minute")
+async def policy_prefill(request: Request, body: PolicyPrefillBody) -> dict:
+    """Fetch domain's robots.txt via SSRF guard and map to per-bot decisions."""
+    from shared.guards import ssrf_safe_get
+
+    domain = body.domain.strip().lstrip("https://").lstrip("http://").rstrip("/")
+    url = f"https://{domain}/robots.txt"
+    try:
+        resp = await ssrf_safe_get(url)
+        robots_txt = resp.text
+    except Exception:
+        try:
+            url = f"http://{domain}/robots.txt"
+            resp = await ssrf_safe_get(url)
+            robots_txt = resp.text
+        except Exception:
+            robots_txt = ""
+
+    decisions = prefill_from_robots(robots_txt)
+    return {"decisions": decisions, "robots_txt_preview": robots_txt[:2000]}
+
+
+@app.post("/policy/generate")
+@limiter.limit("30/minute")
+def policy_generate(request: Request, body: PolicyGenerateBody) -> dict:
+    """Generate robots.txt block + llms.txt scaffold from per-bot decisions."""
+    valid = {"block", "allow", "inherit"}
+    sanitized = {k: v for k, v in body.decisions.items() if v in valid}
+    robots_block = generate_robots_block(sanitized)
+    llms_txt = generate_llms_txt(body.domain, sanitized)
+    return {"robots_block": robots_block, "llms_txt": llms_txt}
+
+
+# ── Crawler Watch ─────────────────────────────────────────────────────────────
+
+_EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
+
+
+class SubscribeBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    email: str = Field(min_length=5, max_length=255)
+
+    @field_validator("email")
+    @classmethod
+    def _validate_email(cls, v: str) -> str:
+        if not _EMAIL_RE.match(v):
+            raise ValueError("invalid email address")
+        return v.lower().strip()
+
+
+@app.post("/crawlerwatch/subscribe")
+@limiter.limit("5/minute")
+def subscribe(request: Request, body: SubscribeBody, db: DBSession = Depends(get_db)) -> dict:
+    existing = db.query(Subscriber).filter(Subscriber.email == body.email).first()
+    if existing:
+        return {"ok": True, "message": "Already subscribed"}
+    sub = Subscriber(email=body.email)
+    db.add(sub)
+    db.commit()
+    return {"ok": True, "message": "Subscribed. You'll receive alerts when new AI crawlers are detected."}
+
+
+@app.get("/crawlerwatch/unsubscribe/{token}")
+def unsubscribe(token: str, db: DBSession = Depends(get_db)) -> Response:
+    sub = db.query(Subscriber).filter(Subscriber.unsubscribe_token == token).first()
+    if sub:
+        db.delete(sub)
+        db.commit()
+        msg = "You have been unsubscribed from TrueTraffic Crawler Watch alerts."
+    else:
+        msg = "This unsubscribe link is no longer valid (already unsubscribed)."
+    return Response(
+        content=f"<html><body style='font-family:sans-serif;padding:40px'><h2>TrueTraffic</h2><p>{msg}</p></body></html>",
+        media_type="text/html",
+    )
+
+
+@app.get("/crawlerwatch/changelog")
+@limiter.limit("30/minute")
+def changelog(request: Request, limit: int = 20, db: DBSession = Depends(get_db)) -> dict:
+    entries = (
+        db.query(CrawlerChangelog)
+        .order_by(CrawlerChangelog.changed_at.desc())
+        .limit(min(limit, 100))
+        .all()
+    )
+    return {
+        "entries": [
+            {
+                "changed_at": e.changed_at.isoformat(),
+                "added": json.loads(e.added_json or "[]"),
+                "removed": json.loads(e.removed_json or "[]"),
+            }
+            for e in entries
+        ]
+    }
+
+
+@app.post("/crawlerwatch/sync")
+@limiter.limit("1/hour")
+def sync_crawlers(request: Request, db: DBSession = Depends(get_db)) -> dict:
+    """Trigger upstream sync. Requires X-Sync-Secret header if SYNC_SECRET env var is set."""
+    if _SYNC_SECRET:
+        header = request.headers.get("X-Sync-Secret", "")
+        if header != _SYNC_SECRET:
+            raise HTTPException(401, "invalid or missing X-Sync-Secret")
+    result = do_sync(db, base_url=_BASE_URL)
+    return result
