@@ -297,7 +297,11 @@ export default function App() {
           {/* Live Traffic section */}
           {checkerResult && (
             <Section title="Live Traffic" icon="📊">
-              {s ? (
+              {statsLoading ? (
+                <div style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 14 }}>
+                  Loading traffic data…
+                </div>
+              ) : s ? (
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 20, alignItems: 'start' }}>
                     <div style={{ textAlign: 'center' }}>

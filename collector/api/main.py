@@ -48,7 +48,7 @@ Base.metadata.create_all(bind=engine)
 
 _CORS_ORIGINS = [
     o.strip()
-    for o in os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+    for o in os.environ.get("CORS_ORIGINS", "*").split(",")
     if o.strip()
 ]
 
