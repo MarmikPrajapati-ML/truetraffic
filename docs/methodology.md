@@ -60,21 +60,72 @@ exposure is good or bad (some publishers *want* AI crawlers to index their conte
 
 ---
 
-## Phase 2 — JS Snippet (planned)
+## Phase 2 — JS Snippet (live, v0.2)
 
-See [snippet/](../snippet/) — not yet released. Classification will be rules-based v1,
-documented here when shipped.
+`snippet/hs.js` is injected into `<head>` via the embed snippet or WordPress plugin.
+It collects 13 anonymous behavioural signals and sends them via `navigator.sendBeacon()`
+on page leave. No cookies, no PII, no blocking of page render.
 
-Conservative threshold policy: ambiguous sessions are classified `unknown`, never `agent`.
-We will prefer false negatives (missing agents) over false positives (mislabelling humans).
+### Conservative threshold policy
+
+Ambiguous sessions are classified `unknown`, never `agent`.
+We prefer false negatives (missing bots) over false positives (mislabelling humans).
+
+### Classification rules (ordered by confidence)
+
+```
+R1: webdriver = true          → suspected_agent   (CDP automation flag)
+R2: headless_ua = true        → suspected_agent   ("headless" in UA string)
+
+Accumulate weak score:
+  +1  languages_empty                            (R3)
+  +1  plugins_empty                              (R4)
+  +1  screen_viewport_ratio_ok = false           (R5)
+  +2  time_to_first_scroll_ms < 500ms
+      AND scroll_depth_pct >= 90%                (R6 — instant full scroll)
+
+R7: had_pointer = true
+    → human         (weak ≤ 1)
+    → unknown       (weak ≥ 2, too ambiguous)
+
+No pointer: weak ≥ 3          → suspected_agent
+No pointer: weak < 3          → unknown
+```
+
+For full signal descriptions see [FEATURES.md § JS Snippet Reference](FEATURES.md#11-js-snippet-reference).
 
 ---
 
-## Limitations
+## Phase 3 — Server Log Analysis (live)
+
+Streaming parser in `collector/api/log_analyzer.py` supports nginx/Apache combined log
+format and Cloudflare CSV exports. Format is auto-detected from the first line.
+
+User-Agent matching: case-insensitive substring search against each crawler's
+`user_agent_pattern` from `data/ai-agents.json`.
+
+AI referral detection: Referer header checked for `chat.openai.com`, `claude.ai`,
+`perplexity.ai`, `you.com`.
+
+---
+
+## Phase 4 — Policy Generation + Crawler Watch (live)
+
+**Policy generation:** Per-crawler decisions (block/allow/inherit) map to robots.txt
+`User-agent:` blocks. `inherit` means the crawler is omitted and follows wildcard rules.
+
+**Crawler Watch:** Daily sync from the ai-robots-txt community project. Diffs new vs.
+previous snapshot and emails subscribers. First sync initialises baseline without alerts.
+
+---
+
+## Limitations (all phases)
 
 - robots.txt is **advisory**. A crawler may ignore it; we cannot verify compliance.
 - Our crawler list (`data/ai-agents.json`) is community-maintained and may be incomplete.
 - `not_mentioned` does not mean the crawler is definitely crawling your site — only that
   your robots.txt has not explicitly addressed it.
-- All language in the product uses "suspected", "estimated", "evidence". Never "detected",
-  "guaranteed", or "blocked" (the last implies enforcement, which robots.txt cannot provide).
+- The JS classifier cannot detect bots that skip JavaScript execution (declared crawlers).
+- Sophisticated bots suppressing all detectable signals will be classified as `unknown`.
+- All product language uses "suspected", "estimated", "evidence". Never "detected",
+  "guaranteed", or "blocked" (robots.txt cannot technically enforce access control).
