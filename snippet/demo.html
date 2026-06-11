@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TrueTraffic snippet — local test page</title>
+  <style>
+    body { font-family: sans-serif; max-width: 640px; margin: 60px auto; padding: 0 24px; color: #1e293b; }
+    h1 { font-size: 22px; }
+    pre { background: #f1f5f9; padding: 16px; border-radius: 8px; font-size: 13px; overflow-x: auto; }
+    .note { color: #64748b; font-size: 14px; margin-top: 8px; }
+    .tall { height: 3000px; background: linear-gradient(to bottom, #fff, #e2e8f0); margin-top: 24px; display: flex; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body>
+<h1>TrueTraffic snippet — demo</h1>
+<p>This page embeds <code>hs.js</code> pointed at your local collector. Move your mouse, scroll the tall block, then navigate away — check the collector logs for the beacon.</p>
+
+<h2>Embed code</h2>
+<pre>&lt;script
+  src="/snippet/hs.js"
+  data-site-key="YOUR_SITE_KEY"
+  data-collector="http://localhost:8001"
+&gt;&lt;/script&gt;</pre>
+<p class="note">Replace <code>YOUR_SITE_KEY</code> with the key returned by <code>POST /sites?domain=yourdomain.com</code>.</p>
+
+<div class="tall">
+  <p style="color:#94a3b8">← scroll to bottom to test scroll-depth signal</p>
+</div>
+
+<script
+  src="hs.js"
+  data-site-key="REPLACE_WITH_YOUR_SITE_KEY"
+  data-collector="http://localhost:8001"
+></script>
+</body>
+</html>

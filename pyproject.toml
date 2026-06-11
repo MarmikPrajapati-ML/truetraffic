@@ -6,9 +6,9 @@ target-version = "py311"
 select = ["E", "F", "W", "I"]
 ignore = ["E501"]
 
-[tool.pytest.ini_options]
-testpaths = ["checker/tests"]
-asyncio_mode = "auto"
-
 [tool.ruff.lint.isort]
-known-first-party = ["checker"]
+known-first-party = ["checker", "collector", "shared"]
+
+[tool.pytest.ini_options]
+testpaths = ["checker/tests", "collector/tests"]
+asyncio_mode = "auto"

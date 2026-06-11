@@ -7,7 +7,7 @@ import urllib.robotparser
 from pathlib import Path
 from typing import Literal
 
-import httpx
+from shared.guards import SSRFError, ssrf_safe_get
 
 AGENTS_PATH = Path(
     os.environ.get(
@@ -15,7 +15,6 @@ AGENTS_PATH = Path(
         str(Path(__file__).parent.parent.parent / "data" / "ai-agents.json"),
     )
 )
-FETCH_TIMEOUT = 3.0
 
 CrawlerStatus = Literal["allowed", "disallowed", "not_mentioned"]
 
@@ -93,20 +92,19 @@ async def check_domain(domain: str) -> dict:
     robots_found = False
     llms_found = False
 
-    async with httpx.AsyncClient(timeout=FETCH_TIMEOUT, follow_redirects=True) as client:
-        try:
-            r = await client.get(f"https://{domain}/robots.txt")
-            if r.status_code == 200:
-                robots_text = r.text
-                robots_found = True
-        except httpx.RequestError:
-            pass
+    try:
+        r = await ssrf_safe_get(f"https://{domain}/robots.txt")
+        if r.status_code == 200:
+            robots_text = r.text
+            robots_found = True
+    except (SSRFError, Exception):
+        pass
 
-        try:
-            r = await client.get(f"https://{domain}/llms.txt")
-            llms_found = r.status_code == 200
-        except httpx.RequestError:
-            pass
+    try:
+        r = await ssrf_safe_get(f"https://{domain}/llms.txt")
+        llms_found = r.status_code == 200
+    except (SSRFError, Exception):
+        pass
 
     agents = _load_agents()
     crawlers: list[dict] = []
