@@ -171,23 +171,39 @@ def get_stats(request: Request, site_key: str, days: int = 30, db: DB = None) ->
         raise HTTPException(404, "unknown site_key")
 
     since = datetime.utcnow() - timedelta(days=max(1, min(days, 90)))
-    visits = (
-        db.query(Visit)
+
+    # C2: aggregate in SQL — never materialise per-visit rows into memory
+    bucket_rows = (
+        db.query(Visit.classification, func.count().label("n"))
         .filter(Visit.site_key == site_key, Visit.created_at >= since)
+        .group_by(Visit.classification)
         .all()
     )
+    counts: dict[str, int] = {"human": 0, "suspected_agent": 0, "unknown": 0}
+    for cls, n in bucket_rows:
+        counts[cls] = n
+    total = sum(counts.values())
 
-    total = len(visits)
-    counts = {"human": 0, "suspected_agent": 0, "unknown": 0}
+    # Daily trend via SQL date-group (SQLite: strftime; Postgres: DATE_TRUNC)
+    if "sqlite" in str(engine.url):
+        day_expr = func.strftime("%Y-%m-%d", Visit.created_at)
+    else:
+        day_expr = func.date_trunc("day", Visit.created_at).cast(func.text)
+
+    daily_rows = (
+        db.query(day_expr.label("day"), Visit.classification, func.count().label("n"))
+        .filter(Visit.site_key == site_key, Visit.created_at >= since)
+        .group_by("day", Visit.classification)
+        .order_by("day")
+        .all()
+    )
     daily: dict[str, dict] = {}
-
-    for v in visits:
-        counts[v.classification] = counts.get(v.classification, 0) + 1
-        day = v.created_at.date().isoformat()
+    for day, cls, n in daily_rows:
+        day = str(day)
         if day not in daily:
             daily[day] = {"human": 0, "suspected_agent": 0, "unknown": 0, "total": 0}
-        daily[day][v.classification] += 1
-        daily[day]["total"] += 1
+        daily[day][cls] = n
+        daily[day]["total"] += n
 
     def pct(n: int) -> float | None:
         return round(n / total * 100, 1) if total else None
@@ -202,7 +218,11 @@ def get_stats(request: Request, site_key: str, days: int = 30, db: DB = None) ->
         "unknown_pct": pct(counts["unknown"]),
         "counts": counts,
         "daily": daily,
-        "note": "Measured from JS-executing traffic only. Declared crawler share requires log upload (Phase 3).",
+        "note": (
+            "Measured from JS-executing traffic only. Declared crawler share requires log upload (Phase 3). "
+            "Stats are readable by anyone who holds the site_key. The site_key is embedded in the JS snippet "
+            "on your page and is therefore effectively public. It is a write key and a read key."
+        ),
     }
 
 

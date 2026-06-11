@@ -376,7 +376,7 @@ export default function App() {
                       <strong>Your site key:</strong> <code style={{ background: '#dcfce7', padding: '2px 6px', borderRadius: 4 }}>{newKey}</code>
                       <div style={{ marginTop: 8, color: '#64748b' }}>
                         Paste into your HTML:
-                        <pre style={{ background: '#0f172a', color: '#7dd3fc', padding: 12, borderRadius: 6, marginTop: 6, fontSize: 11, overflow: 'auto' }}>{`<script src="hs.js"\n  data-site-key="${newKey}"\n  data-collector="${COLLECTOR}"\n></script>`}</pre>
+                        <pre style={{ background: '#0f172a', color: '#7dd3fc', padding: 12, borderRadius: 6, marginTop: 6, fontSize: 11, overflow: 'auto' }}>{`<script src="${COLLECTOR}/hs.js"\n  data-site-key="${newKey}"\n  data-collector="${COLLECTOR}"\n></script>`}</pre>
                       </div>
                     </div>
                   )}

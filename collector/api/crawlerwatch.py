@@ -9,6 +9,7 @@ from typing import Callable
 import httpx
 
 from shared.email import send_email
+from shared.guards import validate_external_url
 
 _log = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ _UNSUBSCRIBE_BASE = "http://localhost:8001"
 def fetch_upstream_tokens(fetch_fn: Callable[[str], str] | None = None) -> list[str]:
     """Fetch agent token list from the upstream ai-robots-txt project."""
     def _default_fetch(url: str) -> str:
+        validate_external_url(url)
         r = httpx.get(url, timeout=15, follow_redirects=True)
         r.raise_for_status()
         return r.text

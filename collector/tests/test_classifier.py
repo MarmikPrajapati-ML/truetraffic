@@ -58,3 +58,27 @@ def test_pointer_with_multiple_weak_signals_is_unknown():
 def test_slow_full_scroll_not_agent():
     result = classify({"time_to_first_scroll_ms": 3000, "scroll_depth_pct": 100})
     assert result != "suspected_agent"
+
+
+# R3 — languages_empty adds one weak signal point
+def test_R3_languages_empty_alone_is_unknown():
+    assert classify({"languages_empty": True}) == "unknown"
+
+
+# R4 — plugins_empty adds one weak signal point
+def test_R4_plugins_empty_alone_is_unknown():
+    assert classify({"plugins_empty": True}) == "unknown"
+
+
+# R5 — screen_viewport_ratio_ok=False adds one weak signal point
+def test_R5_bad_ratio_alone_is_unknown():
+    assert classify({"screen_viewport_ratio_ok": False}) == "unknown"
+
+
+# R3+R4+R5 together (score=3) without pointer → suspected_agent
+def test_R3_R4_R5_combined_no_pointer_is_agent():
+    assert classify({
+        "languages_empty": True,
+        "plugins_empty": True,
+        "screen_viewport_ratio_ok": False,
+    }) == "suspected_agent"

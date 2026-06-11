@@ -24,7 +24,7 @@ interface ReportData {
   malformed_lines: number;
   total_requests: number;
   bot_requests: number;
-  human_requests: number;
+  non_ai_crawler_requests: number;
   bot_pct: number;
   total_bytes: number;
   bot_bytes: number;

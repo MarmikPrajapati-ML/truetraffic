@@ -185,7 +185,7 @@ def analyze(
         "malformed_lines": malformed,
         "total_requests": total_requests,
         "bot_requests": bot_requests,
-        "human_requests": total_requests - bot_requests,
+        "non_ai_crawler_requests": total_requests - bot_requests,
         "bot_pct": round(bot_requests / total_requests * 100, 2) if total_requests else 0,
         "total_bytes": total_bytes,
         "bot_bytes": bot_total_bytes,

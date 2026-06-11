@@ -96,12 +96,14 @@ def test_combined_bot_detected(agents_file):
         p.unlink(missing_ok=True)
 
 
-def test_combined_human_requests(agents_file):
+def test_combined_non_ai_crawler_requests(agents_file):
+    """A2 gate: log layer cannot measure humans; field must be non_ai_crawler_requests."""
     p = _write_tmp(SAMPLE_COMBINED)
     try:
         from collector.api.log_analyzer import analyze
         r = analyze(p)
-        assert r["human_requests"] == 1
+        assert "human_requests" not in r, "field must not be named human_requests"
+        assert r["non_ai_crawler_requests"] == 1
     finally:
         p.unlink(missing_ok=True)
 
