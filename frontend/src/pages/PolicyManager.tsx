@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { Tab } from "../App";
 
 const COLLECTOR_URL = import.meta.env.VITE_COLLECTOR_URL ?? "http://localhost:8001";
 
@@ -27,10 +28,16 @@ const DECISION_COLORS: Record<Decision, string> = {
   inherit: "#6b7280",
 };
 
-export default function PolicyManager() {
+export default function PolicyManager({
+  onNavigate,
+  defaultDomain = "",
+}: {
+  onNavigate: (tab: Tab) => void;
+  defaultDomain?: string;
+}) {
   const [groups, setGroups] = useState<AgentGroups>({});
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
-  const [domain, setDomain] = useState("");
+  const [domain, setDomain] = useState(defaultDomain);
   const [prefillLoading, setPrefillLoading] = useState(false);
   const [prefillMsg, setPrefillMsg] = useState("");
   const [robotsBlock, setRobotsBlock] = useState("");
@@ -50,19 +57,24 @@ export default function PolicyManager() {
           .flat()
           .forEach((a) => (initial[a.name] = "inherit"));
         setDecisions(initial);
+        if (defaultDomain) {
+          setDomain(defaultDomain);
+          setTimeout(() => handlePrefillFor(defaultDomain), 50);
+        }
       })
       .catch(() => setPrefillMsg("Failed to load agent list."));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handlePrefill() {
-    if (!domain.trim()) return;
+  async function handlePrefillFor(d: string) {
+    if (!d.trim()) return;
     setPrefillLoading(true);
     setPrefillMsg("");
     try {
       const res = await fetch(`${COLLECTOR_URL}/policy/prefill`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain: domain.trim() }),
+        body: JSON.stringify({ domain: d.trim() }),
       });
       const data = await res.json();
       if (data.decisions) {
@@ -74,6 +86,10 @@ export default function PolicyManager() {
     } finally {
       setPrefillLoading(false);
     }
+  }
+
+  async function handlePrefill() {
+    await handlePrefillFor(domain);
   }
 
   async function handleGenerate() {
@@ -221,6 +237,12 @@ export default function PolicyManager() {
             copied={copiedLlms}
             onCopy={() => copy(llmsTxt, "llms")}
           />
+          <NextStepCard
+            title="Get alerts when new crawlers appear"
+            body="The AI crawler landscape changes fast. Subscribe to be notified automatically when new bots are added to the community list."
+            buttonLabel="Open Crawler Watch →"
+            onClick={() => onNavigate("watch")}
+          />
         </>
       )}
     </div>
@@ -311,6 +333,18 @@ function OutputBox({
       }}>
         {content}
       </pre>
+    </div>
+  );
+}
+
+function NextStepCard({ title, body, buttonLabel, onClick }: { title: string; body: string; buttonLabel: string; onClick: () => void }) {
+  return (
+    <div style={{ borderLeft: "4px solid #6366f1", borderRadius: 10, padding: "20px 24px", marginTop: 32, background: "#f5f3ff" }}>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: "#0f172a" }}>⟶ {title}</div>
+      <p style={{ color: "#6b7280", marginBottom: 14, marginTop: 0, fontSize: 14 }}>{body}</p>
+      <button onClick={onClick} style={{ background: "#6366f1", color: "white", border: "none", borderRadius: 8, padding: "10px 22px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+        {buttonLabel}
+      </button>
     </div>
   );
 }

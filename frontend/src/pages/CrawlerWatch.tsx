@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { Tab } from "../App";
 
 const COLLECTOR_URL = import.meta.env.VITE_COLLECTOR_URL ?? "http://localhost:8001";
 
@@ -8,7 +9,7 @@ interface ChangelogEntry {
   removed: string[];
 }
 
-export default function CrawlerWatch() {
+export default function CrawlerWatch({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
   const [email, setEmail] = useState("");
   const [subStatus, setSubStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [subMsg, setSubMsg] = useState("");
@@ -102,6 +103,15 @@ export default function CrawlerWatch() {
             {subMsg}
           </div>
         )}
+
+        {subStatus === "ok" && (
+          <NextStepCard
+            title="Back to your site report"
+            body="Check your AI exposure grade, live traffic stats, and explore all your site's analytics in one place."
+            buttonLabel="View Site Report →"
+            onClick={() => onNavigate("dashboard")}
+          />
+        )}
       </div>
 
       {/* Changelog */}
@@ -120,6 +130,18 @@ export default function CrawlerWatch() {
           <ChangelogCard key={i} entry={entry} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function NextStepCard({ title, body, buttonLabel, onClick }: { title: string; body: string; buttonLabel: string; onClick: () => void }) {
+  return (
+    <div style={{ borderLeft: "4px solid #6366f1", borderRadius: 10, padding: "20px 24px", marginTop: 20, background: "#f5f3ff" }}>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: "#0f172a" }}>⟶ {title}</div>
+      <p style={{ color: "#6b7280", marginBottom: 14, marginTop: 0, fontSize: 14 }}>{body}</p>
+      <button onClick={onClick} style={{ background: "#6366f1", color: "white", border: "none", borderRadius: 8, padding: "10px 22px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+        {buttonLabel}
+      </button>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import type { Tab } from "../App";
 
 const COLLECTOR_URL = import.meta.env.VITE_COLLECTOR_URL ?? "http://localhost:8001";
 
@@ -46,7 +47,7 @@ function fmtNum(n: number): string {
   return n.toLocaleString();
 }
 
-export default function LogAnalyzer() {
+export default function LogAnalyzer({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [siteKey, setSiteKey] = useState("");
   const [status, setStatus] = useState<"idle" | "uploading" | "polling" | "done" | "error">("idle");
@@ -199,7 +200,17 @@ export default function LogAnalyzer() {
       )}
 
       {/* Results */}
-      {status === "done" && report && <Results report={report} />}
+      {status === "done" && report && (
+        <>
+          <Results report={report} />
+          <NextStepCard
+            title="Set your AI crawler policy"
+            body="You can see which bots are hitting you. Now control what they're allowed to do — generate a robots.txt block in minutes."
+            buttonLabel="Open Policy Manager →"
+            onClick={() => onNavigate("policy")}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -314,6 +325,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         {title}
       </h3>
       {children}
+    </div>
+  );
+}
+
+function NextStepCard({ title, body, buttonLabel, onClick }: { title: string; body: string; buttonLabel: string; onClick: () => void }) {
+  return (
+    <div style={{ borderLeft: "4px solid #6366f1", borderRadius: 10, padding: "20px 24px", marginTop: 32, background: "#f5f3ff" }}>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: "#0f172a" }}>⟶ {title}</div>
+      <p style={{ color: "#6b7280", marginBottom: 14, marginTop: 0, fontSize: 14 }}>{body}</p>
+      <button onClick={onClick} style={{ background: "#6366f1", color: "white", border: "none", borderRadius: 8, padding: "10px 22px", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
+        {buttonLabel}
+      </button>
     </div>
   );
 }
