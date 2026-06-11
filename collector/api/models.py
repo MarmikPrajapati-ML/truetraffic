@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, func
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text, func
 
 from .db import Base
 
@@ -41,3 +41,16 @@ class Visit(Base):
 
     classification = Column(String(20), default="unknown", index=True)
     created_at = Column(DateTime, server_default=func.now(), index=True)
+
+
+class LogReport(Base):
+    __tablename__ = "log_reports"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    report_id = Column(String(36), unique=True, nullable=False, index=True,
+                       default=lambda: str(uuid.uuid4()))
+    site_key = Column(String(36), nullable=True, index=True)
+    status = Column(String(20), default="pending")  # pending | done | error
+    report_json = Column(Text, nullable=True)
+    error_msg = Column(String(500), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())

@@ -1,13 +1,26 @@
-"""TrueTraffic collector API — Phase 2."""
+"""TrueTraffic collector API — Phase 3."""
 from __future__ import annotations
 
+import json
 import os
 import re
+import tempfile
 import uuid
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from slowapi.errors import RateLimitExceeded
@@ -19,8 +32,9 @@ from shared import logging_cfg
 from shared.limiter import limiter
 
 from .classifier import classify
-from .db import Base, engine, get_db
-from .models import Site, Visit
+from .db import Base, SessionLocal, engine, get_db
+from .log_analyzer import analyze as analyze_log
+from .models import LogReport, Site, Visit
 
 logging_cfg.configure(os.environ.get("LOG_LEVEL", "INFO"))
 Base.metadata.create_all(bind=engine)
@@ -31,7 +45,10 @@ _CORS_ORIGINS = [
     if o.strip()
 ]
 
-app = FastAPI(title="TrueTraffic Collector", version="0.2.0")
+_MAX_UPLOAD_BYTES = int(os.environ.get("LOG_MAX_UPLOAD_BYTES", 100 * 1024 * 1024))  # 100 MB
+_TMP_DIR = Path(os.environ.get("LOG_TMP_DIR", tempfile.gettempdir()))
+
+app = FastAPI(title="TrueTraffic Collector", version="0.3.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, lambda req, exc: Response(
     content='{"detail":"rate limit exceeded"}',
@@ -210,3 +227,93 @@ def badge(request: Request, site_key: str, db: DB = None) -> Response:
         media_type="image/svg+xml",
         headers={"Cache-Control": "public, max-age=3600"},
     )
+
+
+# ── Log upload / report ───────────────────────────────────────────────────────
+
+def _process_log(report_id: str, tmp_path: Path) -> None:
+    """Background task: parse log, persist aggregate, delete temp file (H8)."""
+    db = SessionLocal()
+    try:
+        result = analyze_log(tmp_path)
+        report = db.query(LogReport).filter(LogReport.report_id == report_id).first()
+        if report:
+            report.report_json = json.dumps(result)
+            report.status = "done"
+            db.commit()
+    except Exception as exc:
+        report = db.query(LogReport).filter(LogReport.report_id == report_id).first()
+        if report:
+            report.status = "error"
+            report.error_msg = str(exc)[:500]
+            db.commit()
+    finally:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        db.close()
+
+
+@app.post("/logs/upload")
+@limiter.limit("5/minute")
+async def upload_log(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    site_key: str | None = Form(default=None),
+    db: DBSession = Depends(get_db),
+) -> dict:
+    if site_key and not _SITE_KEY_RE.match(site_key):
+        raise HTTPException(400, "invalid site_key format")
+
+    suffix = Path(file.filename or "upload.log").suffix or ".log"
+    tmp_path = _TMP_DIR / f"tt_log_{uuid.uuid4().hex}{suffix}"
+
+    try:
+        size = 0
+        with tmp_path.open("wb") as fh:
+            while True:
+                chunk = await file.read(65536)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > _MAX_UPLOAD_BYTES:
+                    raise HTTPException(413, f"File exceeds {_MAX_UPLOAD_BYTES // 1_048_576} MB limit")
+                fh.write(chunk)
+    except HTTPException:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+    report = LogReport(
+        report_id=str(uuid.uuid4()),
+        site_key=site_key,
+        status="pending",
+    )
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+
+    background_tasks.add_task(_process_log, report.report_id, tmp_path)
+
+    return {"report_id": report.report_id, "status": "pending"}
+
+
+@app.get("/logs/report/{report_id}")
+@limiter.limit("30/minute")
+def get_log_report(request: Request, report_id: str, db: DBSession = Depends(get_db)) -> dict:
+    report = db.query(LogReport).filter(LogReport.report_id == report_id).first()
+    if not report:
+        raise HTTPException(404, "report not found")
+
+    if report.status == "pending":
+        return {"report_id": report_id, "status": "pending"}
+
+    if report.status == "error":
+        return {"report_id": report_id, "status": "error", "error": report.error_msg}
+
+    return {
+        "report_id": report_id,
+        "status": "done",
+        "data": json.loads(report.report_json or "{}"),
+    }

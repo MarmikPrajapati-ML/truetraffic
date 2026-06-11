@@ -3,10 +3,14 @@ import { fetchStats, registerSite, type StatsResponse } from './api';
 import { HumanGauge } from './components/HumanGauge';
 import { BucketBar } from './components/BucketBar';
 import { TrendChart } from './components/TrendChart';
+import LogAnalyzer from './pages/LogAnalyzer';
+
+type Tab = 'dashboard' | 'logs';
 
 const COLLECTOR = import.meta.env.VITE_COLLECTOR_URL || 'http://localhost:8001';
 
 export default function App() {
+  const [tab, setTab] = useState<Tab>('dashboard');
   const [siteKey, setSiteKey] = useState(localStorage.getItem('tt_site_key') || '');
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,13 +53,27 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif', background: '#f8fafc', minHeight: '100vh' }}>
-      <nav style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '0 28px', height: 56, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <nav style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '0 28px', height: 56, display: 'flex', alignItems: 'center', gap: 16 }}>
         <div style={{ width: 28, height: 28, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>T</div>
-        <span style={{ fontWeight: 700, fontSize: 16 }}>TrueTraffic</span>
-        <span style={{ fontSize: 12, color: '#94a3b8', background: '#f1f5f9', padding: '2px 8px', borderRadius: 99, border: '1px solid #e2e8f0' }}>Dashboard</span>
+        <span style={{ fontWeight: 700, fontSize: 16, marginRight: 8 }}>TrueTraffic</span>
+        {(['dashboard', 'logs'] as Tab[]).map((t) => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontWeight: tab === t ? 700 : 400,
+            color: tab === t ? '#6366f1' : '#64748b',
+            fontSize: 14,
+            borderBottom: tab === t ? '2px solid #6366f1' : '2px solid transparent',
+            padding: '4px 2px',
+          }}>
+            {t === 'dashboard' ? 'Dashboard' : 'Log Analyzer'}
+          </button>
+        ))}
       </nav>
 
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '40px 24px 80px' }}>
+      {tab === 'logs' && <LogAnalyzer />}
+      <div style={{ maxWidth: 860, margin: '0 auto', padding: '40px 24px 80px', display: tab === 'dashboard' ? 'block' : 'none' }}>
 
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
           <div style={{ fontWeight: 700, marginBottom: 12 }}>Register your website</div>
