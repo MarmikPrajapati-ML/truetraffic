@@ -1,0 +1,182 @@
+[
+  {
+    "name": "GPTBot",
+    "vendor": "OpenAI",
+    "robots_txt_token": "GPTBot",
+    "user_agent_pattern": "GPTBot",
+    "declared": true,
+    "documentation": "https://platform.openai.com/docs/gptbot",
+    "category": "training"
+  },
+  {
+    "name": "ChatGPT-User",
+    "vendor": "OpenAI",
+    "robots_txt_token": "ChatGPT-User",
+    "user_agent_pattern": "ChatGPT-User",
+    "declared": true,
+    "documentation": "https://platform.openai.com/docs/plugins/bot",
+    "category": "browsing"
+  },
+  {
+    "name": "OAI-SearchBot",
+    "vendor": "OpenAI",
+    "robots_txt_token": "OAI-SearchBot",
+    "user_agent_pattern": "OAI-SearchBot",
+    "declared": true,
+    "documentation": "https://platform.openai.com/docs/bots",
+    "category": "search"
+  },
+  {
+    "name": "ClaudeBot",
+    "vendor": "Anthropic",
+    "robots_txt_token": "ClaudeBot",
+    "user_agent_pattern": "ClaudeBot",
+    "declared": true,
+    "documentation": "https://support.anthropic.com/en/articles/8896518",
+    "category": "training"
+  },
+  {
+    "name": "anthropic-ai",
+    "vendor": "Anthropic",
+    "robots_txt_token": "anthropic-ai",
+    "user_agent_pattern": "anthropic-ai",
+    "declared": true,
+    "documentation": "https://support.anthropic.com/en/articles/8896518",
+    "category": "training"
+  },
+  {
+    "name": "Claude-Web",
+    "vendor": "Anthropic",
+    "robots_txt_token": "Claude-Web",
+    "user_agent_pattern": "Claude-Web",
+    "declared": true,
+    "documentation": "https://support.anthropic.com/en/articles/8896518",
+    "category": "browsing"
+  },
+  {
+    "name": "CCBot",
+    "vendor": "Common Crawl",
+    "robots_txt_token": "CCBot",
+    "user_agent_pattern": "CCBot/2.0",
+    "declared": true,
+    "documentation": "https://commoncrawl.org/ccbot",
+    "category": "training"
+  },
+  {
+    "name": "PerplexityBot",
+    "vendor": "Perplexity AI",
+    "robots_txt_token": "PerplexityBot",
+    "user_agent_pattern": "PerplexityBot",
+    "declared": true,
+    "documentation": "https://docs.perplexity.ai/docs/perplexitybot",
+    "category": "search"
+  },
+  {
+    "name": "Google-Extended",
+    "vendor": "Google",
+    "robots_txt_token": "Google-Extended",
+    "user_agent_pattern": "Google-Extended",
+    "declared": true,
+    "documentation": "https://developers.google.com/search/docs/crawling-indexing/overview-google-crawlers",
+    "category": "training"
+  },
+  {
+    "name": "Bytespider",
+    "vendor": "ByteDance",
+    "robots_txt_token": "Bytespider",
+    "user_agent_pattern": "Bytespider",
+    "declared": true,
+    "documentation": "https://bytespider.eu",
+    "category": "training"
+  },
+  {
+    "name": "FacebookBot",
+    "vendor": "Meta",
+    "robots_txt_token": "FacebookBot",
+    "user_agent_pattern": "FacebookBot",
+    "declared": true,
+    "documentation": "https://developers.facebook.com/docs/sharing/webmasters/web-crawlers",
+    "category": "training"
+  },
+  {
+    "name": "Applebot-Extended",
+    "vendor": "Apple",
+    "robots_txt_token": "Applebot-Extended",
+    "user_agent_pattern": "Applebot-Extended",
+    "declared": true,
+    "documentation": "https://support.apple.com/en-us/111928",
+    "category": "training"
+  },
+  {
+    "name": "cohere-ai",
+    "vendor": "Cohere",
+    "robots_txt_token": "cohere-ai",
+    "user_agent_pattern": "cohere-ai",
+    "declared": true,
+    "documentation": "https://cohere.com",
+    "category": "training"
+  },
+  {
+    "name": "Omgilibot",
+    "vendor": "Webz.io",
+    "robots_txt_token": "Omgilibot",
+    "user_agent_pattern": "Omgilibot",
+    "declared": true,
+    "documentation": "https://webz.io",
+    "category": "training"
+  },
+  {
+    "name": "Webzio-Extended",
+    "vendor": "Webz.io",
+    "robots_txt_token": "Webzio-Extended",
+    "user_agent_pattern": "Webzio-Extended",
+    "declared": true,
+    "documentation": "https://webz.io",
+    "category": "training"
+  },
+  {
+    "name": "YouBot",
+    "vendor": "You.com",
+    "robots_txt_token": "YouBot",
+    "user_agent_pattern": "YouBot",
+    "declared": true,
+    "documentation": "https://about.you.com/youbot/",
+    "category": "search"
+  },
+  {
+    "name": "Diffbot",
+    "vendor": "Diffbot",
+    "robots_txt_token": "Diffbot",
+    "user_agent_pattern": "Diffbot",
+    "declared": true,
+    "documentation": "https://www.diffbot.com",
+    "category": "training"
+  },
+  {
+    "name": "Amazonbot",
+    "vendor": "Amazon",
+    "robots_txt_token": "Amazonbot",
+    "user_agent_pattern": "Amazonbot",
+    "declared": true,
+    "documentation": "https://developer.amazon.com/support/amazonbot",
+    "category": "training"
+  },
+  {
+    "name": "img2dataset",
+    "vendor": "LAION",
+    "robots_txt_token": "img2dataset",
+    "user_agent_pattern": "img2dataset",
+    "declared": true,
+    "documentation": "https://github.com/rom1504/img2dataset",
+    "category": "training"
+  },
+  {
+    "name": "Timpibot",
+    "vendor": "Timpi.io",
+    "robots_txt_token": "Timpibot",
+    "user_agent_pattern": "Timpibot",
+    "declared": true,
+    "documentation": "https://timpi.io",
+    "category": "search"
+  }
+]

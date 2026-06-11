@@ -1,0 +1,18 @@
+humanshare — Third-Party Notices
+===================================
+
+This project incorporates data and libraries from the following sources:
+
+1. fastapi (MIT) — https://github.com/tiangolo/fastapi
+2. uvicorn (BSD-3-Clause) — https://github.com/encode/uvicorn
+3. httpx (BSD-3-Clause) — https://github.com/encode/httpx
+4. protego (BSD-3-Clause) — https://github.com/scrapy/protego
+5. pytest (MIT) — https://github.com/pytest-dev/pytest
+6. pytest-asyncio (Apache-2.0) — https://github.com/pytest-dev/pytest-asyncio
+7. ruff (MIT) — https://github.com/astral-sh/ruff
+
+AI Crawler Data Sources:
+- ai-robots-txt project (MIT) — https://github.com/ai-robots-txt/ai.robots.txt
+- monperrus/crawler-user-agents (MIT) — https://github.com/monperrus/crawler-user-agents
+- Vendor documentation for GPTBot, ClaudeBot, PerplexityBot, Google-Extended,
+  Bytespider, FacebookBot, Applebot-Extended, CCBot, and others (public domain / fair use).

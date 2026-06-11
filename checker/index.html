@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrueTraffic — AI Website Checker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand: #6366f1;
+      --brand-dark: #4f46e5;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --light: #f1f5f9;
+      --green: #16a34a;
+      --green-bg: #f0fdf4;
+      --green-border: #bbf7d0;
+      --red: #dc2626;
+      --red-bg: #fef2f2;
+      --red-border: #fecaca;
+      --yellow: #d97706;
+      --yellow-bg: #fffbeb;
+      --yellow-border: #fde68a;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+      --shadow: 0 4px 12px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.05);
+      --shadow-lg: 0 10px 40px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+      --radius: 14px;
+    }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .nav-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+    .nav-logo .icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 16px; font-weight: 700;
+    }
+    .nav-logo span { font-size: 17px; font-weight: 700; color: var(--text); }
+    .nav-badge {
+      font-size: 11px; padding: 3px 8px;
+      background: var(--light); color: var(--muted);
+      border-radius: 99px; border: 1px solid var(--border);
+    }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(160deg, #eef2ff 0%, #f8fafc 55%);
+      padding: 72px 24px 56px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 600; color: var(--brand);
+      background: #ede9fe; border-radius: 99px; padding: 4px 12px;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 800;
+      line-height: 1.18;
+      letter-spacing: -0.6px;
+      color: var(--text);
+      max-width: 620px;
+      margin: 0 auto 14px;
+    }
+    .hero h1 em { font-style: normal; color: var(--brand); }
+    .hero p {
+      font-size: 17px; color: var(--muted);
+      max-width: 500px; margin: 0 auto 36px;
+      line-height: 1.6;
+    }
+
+    .search-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow-lg);
+      padding: 24px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .search-label { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 8px; text-align: left; }
+    .search-row { display: flex; gap: 8px; }
+    .url-input {
+      flex: 1;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      min-width: 0;
+    }
+    .url-input::placeholder { color: #94a3b8; }
+    .url-input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
+    .check-btn {
+      background: linear-gradient(135deg, var(--brand), #8b5cf6);
+      color: white; border: none; border-radius: 10px;
+      padding: 12px 22px; font-size: 15px; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+      transition: opacity 0.15s, transform 0.1s;
+      box-shadow: 0 2px 8px rgba(99,102,241,.35);
+    }
+    .check-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+    .check-btn:active { transform: translateY(0); }
+    .check-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .search-hint { font-size: 12px; color: #94a3b8; margin-top: 10px; text-align: left; }
+
+    /* ── MAIN CONTENT ── */
+    .content { max-width: 740px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* Loading */
+    .loader {
+      text-align: center; padding: 60px 0;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--brand);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader p { color: var(--muted); font-size: 15px; }
+
+    /* Error */
+    .error-card {
+      background: var(--red-bg);
+      border: 1px solid var(--red-border);
+      border-radius: var(--radius);
+      padding: 18px 22px;
+      color: var(--red);
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .error-card .icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── SCORE CARD ── */
+    .score-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px 28px 24px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .score-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+    }
+    .score-card.g-A::before { background: linear-gradient(90deg,#16a34a,#22c55e); }
+    .score-card.g-B::before { background: linear-gradient(90deg,#65a30d,#84cc16); }
+    .score-card.g-C::before { background: linear-gradient(90deg,#d97706,#f59e0b); }
+    .score-card.g-D::before { background: linear-gradient(90deg,#ea580c,#f97316); }
+    .score-card.g-F::before { background: linear-gradient(90deg,#dc2626,#ef4444); }
+
+    .score-top { display: flex; align-items: center; gap: 22px; margin-bottom: 20px; }
+    .grade-ring {
+      width: 80px; height: 80px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 36px; font-weight: 900;
+      letter-spacing: -1px;
+    }
+    .g-A .grade-ring { background: #f0fdf4; color: #16a34a; box-shadow: 0 0 0 3px #bbf7d0; }
+    .g-B .grade-ring { background: #f7fee7; color: #65a30d; box-shadow: 0 0 0 3px #d9f99d; }
+    .g-C .grade-ring { background: #fffbeb; color: #d97706; box-shadow: 0 0 0 3px #fde68a; }
+    .g-D .grade-ring { background: #fff7ed; color: #ea580c; box-shadow: 0 0 0 3px #fed7aa; }
+    .g-F .grade-ring { background: #fef2f2; color: #dc2626; box-shadow: 0 0 0 3px #fecaca; }
+
+    .score-info h2 { font-size: 20px; font-weight: 700; margin-bottom: 5px; }
+    .score-info .desc { font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+    .score-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .stat-box {
+      background: var(--light);
+      border-radius: 10px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+    .stat-box .num { font-size: 26px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+    .stat-box .lbl { font-size: 12px; color: var(--muted); font-weight: 500; }
+    .stat-box.open .num { color: var(--red); }
+    .stat-box.blocked .num { color: var(--green); }
+    .stat-box.total .num { color: var(--brand); }
+
+    .score-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+    .pill {
+      font-size: 12px; font-weight: 600; padding: 4px 12px;
+      border-radius: 99px; display: flex; align-items: center; gap: 5px;
+    }
+    .pill-ok  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+    .pill-miss{ background: var(--light);    color: var(--muted);  border: 1px solid var(--border); }
+
+    /* ── CRAWLERS SECTION ── */
+    .section-title {
+      font-size: 16px; font-weight: 700;
+      margin: 28px 0 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-title .cnt {
+      background: var(--light); color: var(--muted);
+      font-size: 12px; padding: 2px 8px; border-radius: 99px;
+    }
+
+    .crawler-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .crawler-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .crawler-card-top {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .crawler-name { font-size: 14px; font-weight: 600; }
+    .crawler-vendor { font-size: 12px; color: var(--muted); }
+    .status-pill {
+      font-size: 11px; font-weight: 700; padding: 3px 9px;
+      border-radius: 99px; white-space: nowrap;
+    }
+    .s-disallowed  { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-border); }
+    .s-allowed     { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow-border); }
+    .s-not_mentioned { background: var(--red-bg);  color: var(--red);    border: 1px solid var(--red-border); }
+
+    /* ── ACTION SECTION ── */
+    .action-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-top: 24px;
+    }
+    .action-header {
+      background: linear-gradient(135deg, #f0f9ff, #eff6ff);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 24px;
+    }
+    .action-header h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .action-header p  { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .action-body { padding: 20px 24px; }
+    .code-block {
+      background: #0f172a;
+      border-radius: 10px;
+      padding: 16px;
+      font-family: "SFMono-Regular", "Fira Code", Consolas, monospace;
+      font-size: 12px;
+      color: #7dd3fc;
+      white-space: pre;
+      overflow-x: auto;
+      margin-bottom: 12px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .copy-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--brand); color: white;
+      border: none; border-radius: 8px;
+      padding: 9px 18px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .copy-btn:hover { opacity: 0.88; }
+    .copy-btn.copied { background: var(--green); }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 13px;
+      color: var(--muted);
+    }
+    footer a { color: var(--brand); text-decoration: none; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 540px) {
+      .score-stats { grid-template-columns: repeat(3, 1fr); }
+      .score-top { gap: 16px; }
+      .grade-ring { width: 64px; height: 64px; font-size: 28px; }
+      .crawler-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="nav-logo">
+    <div class="icon">h</div>
+    <span>TrueTraffic</span>
+  </a>
+  <span class="nav-badge">Free · No signup required</span>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow">🔍 AI Web Transparency Tool</div>
+  <h1>Is your website being read<br>by <em>AI bots</em>?</h1>
+  <p>Enter your website URL to instantly see which AI companies can scrape your content — and what you can do about it.</p>
+
+  <div class="search-card">
+    <div class="search-label">Your website URL</div>
+    <div class="search-row">
+      <input
+        class="url-input"
+        type="text"
+        id="domain"
+        placeholder="yourwebsite.com"
+        autocomplete="off"
+        spellcheck="false"
+      >
+      <button class="check-btn" id="btn" onclick="runCheck()">
+        Check now →
+      </button>
+    </div>
+    <div class="search-hint">No sign-up needed. We never store your domain or any personal data.</div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<div class="content">
+  <div id="loading" style="display:none" class="loader">
+    <div class="spinner"></div>
+    <p>Checking your website's AI settings…</p>
+  </div>
+
+  <div id="err" style="display:none" class="error-card">
+    <span class="icon">⚠️</span>
+    <div>
+      <strong>Something went wrong.</strong>
+      <div id="err-msg" style="margin-top:4px;font-size:14px"></div>
+    </div>
+  </div>
+
+  <div id="result" style="display:none"></div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <p>
+    TrueTraffic is <a href="https://github.com/MarmikPrajapati-ML/truetraffic" target="_blank">open source</a> and free to use.
+    Results are based on publicly available robots.txt files — not stored or tracked.
+  </p>
+  <p style="margin-top:6px">
+    Missing an AI company?
+    <a href="https://github.com/MarmikPrajapati-ML/truetraffic/issues" target="_blank">Let us know →</a>
+  </p>
+</footer>
+
+<script>
+const GRADE_META = {
+  A:  { label: "Very well protected",    desc: "Almost no AI crawlers have access to your site. Your robots.txt is doing a great job blocking them." },
+  B:  { label: "Mostly protected",       desc: "A small number of AI crawlers can still access your site. Consider reviewing the ones listed below." },
+  C:  { label: "Partially open",         desc: "About half of AI crawlers can access your content. You may want to review which ones you're comfortable with." },
+  D:  { label: "Mostly open",            desc: "Most AI crawlers can access your site. Your content is being widely scraped by AI training systems." },
+  F:  { label: "Fully open to AI bots",  desc: "Every AI crawler we track can access your site — either because your settings allow it, or because you haven't set any rules yet." },
+  NA: { label: "Could not determine",    desc: "We couldn't read your robots.txt file. This usually means all AI crawlers can access your site by default." },
+};
+
+const VENDOR_EMOJI = {
+  OpenAI: "🤖", Anthropic: "🧠", Google: "🔍", Meta: "📘",
+  Apple: "🍎", ByteDance: "📱", Amazon: "📦", "Perplexity AI": "💜",
+  "Common Crawl": "🌐", Cohere: "⚡", LAION: "🖼️", "Webz.io": "🕸️",
+  "You.com": "🔎", Diffbot: "🤖", "Timpi.io": "⏱️",
+};
+
+async function runCheck() {
+  const raw = document.getElementById('domain').value.trim();
+  if (!raw) return;
+
+  const btn = document.getElementById('btn');
+  btn.disabled = true;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('err').style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+
+  try {
+    const res = await fetch(`${window.API_BASE || ''}/check?domain=${encodeURIComponent(raw)}`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `Server error (${res.status})`);
+    }
+    const data = await res.json();
+    render(data);
+  } catch(e) {
+    document.getElementById('err-msg').textContent = e.message;
+    document.getElementById('err').style.display = 'flex';
+  } finally {
+    btn.disabled = false;
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+function render(d) {
+  const grade = d.grade === 'N/A' ? 'NA' : d.grade;
+  const meta  = GRADE_META[grade] || GRADE_META.NA;
+  const open  = d.summary.allowed + d.summary.not_mentioned;
+  const total = d.summary.total;
+
+  // Score card
+  const robotsPill = d.robots_txt_found
+    ? `<span class="pill pill-ok">✓ robots.txt found</span>`
+    : `<span class="pill pill-miss">✗ No robots.txt found</span>`;
+
+  const llmsPill = d.llms_txt_found
+    ? `<span class="pill pill-ok">✓ llms.txt found</span>`
+    : `<span class="pill pill-miss">✗ No llms.txt</span>`;
+
+  const scoreCard = `
+    <div class="score-card g-${grade}">
+      <div class="score-top">
+        <div class="grade-ring">${d.grade}</div>
+        <div class="score-info">
+          <h2>${esc(meta.label)}</h2>
+          <p class="desc">${esc(meta.desc)}</p>
+        </div>
+      </div>
+      <div class="score-stats">
+        <div class="stat-box open">
+          <div class="num">${open}</div>
+          <div class="lbl">AI bots can access</div>
+        </div>
+        <div class="stat-box blocked">
+          <div class="num">${d.summary.disallowed}</div>
+          <div class="lbl">Blocked</div>
+        </div>
+        <div class="stat-box total">
+          <div class="num">${total}</div>
+          <div class="lbl">Total checked</div>
+        </div>
+      </div>
+      <div class="score-tags">${robotsPill}${llmsPill}</div>
+    </div>`;
+
+  // Crawler grid
+  const cards = d.crawlers.map(c => {
+    const emoji = VENDOR_EMOJI[c.vendor] || '🤖';
+    const [pillClass, pillText] = c.status === 'disallowed'
+      ? ['s-disallowed', '✓ Blocked']
+      : c.status === 'allowed'
+      ? ['s-allowed', '⚠ Allowed']
+      : ['s-not_mentioned', '✗ Open'];
+    return `
+      <div class="crawler-card">
+        <div class="crawler-card-top">
+          <span class="crawler-name">${emoji} ${esc(c.name)}</span>
+          <span class="status-pill ${pillClass}">${pillText}</span>
+        </div>
+        <span class="crawler-vendor">${esc(c.vendor)} · ${esc(c.category)}</span>
+      </div>`;
+  }).join('');
+
+  const crawlerSection = `
+    <div class="section-title">
+      AI Company Breakdown
+      <span class="cnt">${total} checked</span>
+    </div>
+    <div class="crawler-grid">${cards}</div>`;
+
+  // Action section (only if anything is open)
+  let actionSection = '';
+  if (d.suggested_robots_block) {
+    actionSection = `
+      <div class="action-card">
+        <div class="action-header">
+          <h3>🔒 How to block AI crawlers</h3>
+          <p>
+            Copy the block below and paste it into your <strong>robots.txt</strong> file —
+            a text file at the root of your website that tells bots what they can access.
+            Your web host or developer can add this in seconds.
+          </p>
+        </div>
+        <div class="action-body">
+          <div class="code-block" id="rblock">${esc(d.suggested_robots_block)}</div>
+          <button class="copy-btn" id="copybtn" onclick="copyBlock()">
+            📋 Copy to clipboard
+          </button>
+        </div>
+      </div>`;
+  } else {
+    actionSection = `
+      <div class="action-card">
+        <div class="action-header">
+          <h3>🎉 You're all set!</h3>
+          <p>All known AI crawlers are already blocked in your robots.txt. No action needed.</p>
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('result').innerHTML = scoreCard + crawlerSection + actionSection;
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function copyBlock() {
+  const text = document.getElementById('rblock').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const b = document.getElementById('copybtn');
+    b.textContent = '✓ Copied!';
+    b.classList.add('copied');
+    setTimeout(() => {
+      b.innerHTML = '📋 Copy to clipboard';
+      b.classList.remove('copied');
+    }, 2500);
+  });
+}
+
+document.getElementById('domain').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runCheck();
+});
+</script>
+</body>
+</html>
